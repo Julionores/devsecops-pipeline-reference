@@ -18,7 +18,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Nginx tourne déjà en tant qu'utilisateur non-root sur l'image officielle "-alpine" >= 1.25.
 
+# 127.0.0.1 plutôt que "localhost" : sur Alpine, "localhost" résout d'abord en IPv6
+# (::1) et Nginx n'écoute qu'en IPv4 ici, ce qui fait échouer le HEALTHCHECK
+# ("connection refused") alors que le service répond bien.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1
+    CMD wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1
 
 EXPOSE 8080

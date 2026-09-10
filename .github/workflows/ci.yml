@@ -241,9 +241,11 @@ jobs:
       - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: backend/Dockerfile
+          config: .hadolint.yaml
       - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: frontend/Dockerfile
+          config: .hadolint.yaml
 
   # ---------------------------------------------------------------------------
   # 5. Construction, scan et signature des images (uniquement sur main)

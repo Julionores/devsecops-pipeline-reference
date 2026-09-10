@@ -1,0 +1,11 @@
+## Suppressions documentées (pas une désactivation générale de la sécurité) :
+##
+## - DL3025 : les instructions HEALTHCHECK CMD utilisent la forme shell (wget | grep)
+##   pour pouvoir enchaîner un pipe ; hadolint n'a pas d'équivalent en notation JSON
+##   exec pour ce cas précis.
+## - DL3066 : l'utilisateur non-root de l'image backend est créé par nom
+##   (adduser -S app), conformément aux recommandations Docker ; un UID numérique
+##   n'apporte pas de garantie supplémentaire ici.
+ignored:
+  - DL3025
+  - DL3066
