@@ -271,6 +271,7 @@ jobs:
       contents: read
       packages: write
       id-token: write # requis pour la signature keyless cosign (OIDC)
+      attestations: write # requis par actions/attest-build-provenance (API Attestations)
     outputs:
       backend-digest: ${{ steps.build-backend.outputs.digest }}
       frontend-digest: ${{ steps.build-frontend.outputs.digest }}
