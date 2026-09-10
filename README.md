@@ -74,21 +74,26 @@ docker compose up --build
 
 ## Vérification effectuée avant publication
 
-Contrairement à un simple squelette, le code applicatif de ce dépôt a été **réellement
-installé, linté, typé, testé et buildé** avant publication (environnement avec accès complet
-au registre npm) :
+Le code applicatif a été **réellement installé, linté, typé, testé et buildé** en local avant
+publication :
 
 | | Lint | Types | Tests | Build |
 |---|---|---|---|---|
 | Backend | ✅ ESLint | ✅ tsc strict | ✅ 11/11 (Jest) | ✅ |
 | Frontend | ✅ oxlint | ✅ tsc strict | ✅ 4/4 (Vitest) | ✅ |
 
-En revanche, la construction des images Docker et l'exécution complète des workflows GitHub
-Actions (`build-images`, `scan-images`, `deploy-staging`, `deploy-production`) n'ont pas pu
-être testées dans l'environnement de rédaction (pas d'accès à Docker Hub/GHCR ni à un hôte de
-staging réel). Leur syntaxe YAML a été validée automatiquement ; leur exécution réelle reste
-à vérifier au premier push sur GitHub, secrets renseignés (voir la liste dans
-[`docs/pipeline-architecture.md`](docs/pipeline-architecture.md#secrets-requis)).
+Le pipeline CI (`ci.yml`) a ensuite été **exécuté pour de vrai sur GitHub Actions**, pas
+seulement validé syntaxiquement — voir le badge en tête de ce README ou
+[l'historique des runs](https://github.com/Julionores/devsecops-pipeline-reference/actions).
+Plusieurs bugs réels, invisibles en local, n'ont été découverts qu'à ce moment-là et ont été
+corrigés (historique des commits `fix:`) : incompatibilité de version Node pour jsdom, nom de
+repository GHCR devant être en minuscules, permission GitHub manquante pour l'attestation
+SLSA, framework Checkov retiré dans une version récente, CVE sur des paquets OS déjà patchés
+en amont — exactement le genre de choses qu'un simple linter YAML ne peut pas détecter.
+
+Le CD (`deploy-staging`, `deploy-production`) reste non exécuté : il suppose un hôte SSH réel
+(staging/prod) que ce projet de démonstration ne provisionne pas. Sa syntaxe est validée et son
+fonctionnement documenté dans [`docs/pipeline-architecture.md`](docs/pipeline-architecture.md#secrets-requis).
 
 ## Configuration requise pour un déploiement réel
 
