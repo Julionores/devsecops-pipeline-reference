@@ -328,14 +328,14 @@ jobs:
       # Provenance SLSA + signature keyless Sigstore : preuve vérifiable que l'image
       # provient bien de ce pipeline, sur ce commit, sans clé privée à gérer.
       - name: Attestation de provenance SLSA (backend)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
           subject-digest: ${{ steps.build-backend.outputs.digest }}
           push-to-registry: true
 
       - name: Attestation de provenance SLSA (frontend)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
           subject-digest: ${{ steps.build-frontend.outputs.digest }}
