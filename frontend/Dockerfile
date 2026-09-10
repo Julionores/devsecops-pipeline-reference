@@ -13,6 +13,11 @@ RUN npm run build
 # --- Étape 2 : image finale, Nginx minimal ---
 FROM nginx:1.27-alpine
 
+# Correctifs de sécurité Alpine publiés après la construction de l'image de base
+# (openssl, libxml2, zlib...) - sans ça, Trivy remonte régulièrement des CVE
+# CRITICAL/HIGH sur des paquets OS déjà patchés en amont.
+RUN apk upgrade --no-cache
+
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
