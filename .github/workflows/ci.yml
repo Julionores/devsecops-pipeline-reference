@@ -78,7 +78,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # jsdom (utilisé par Vitest) exige Node >=22.22.2 - voir node_modules/jsdom/package.json.
+          # Différent du backend qui reste sur Node 20 (aucune contrainte équivalente).
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -223,14 +225,19 @@ jobs:
   # 4. Infrastructure as Code
   # ---------------------------------------------------------------------------
   iac-scan:
-    name: Scan IaC (Checkov - Dockerfiles, Compose, Kubernetes)
+    name: Scan IaC (Checkov - Dockerfiles, Kubernetes)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: bridgecrewio/checkov-action@master
         with:
           directory: .
-          framework: dockerfile,docker_compose,kubernetes
+          # "docker_compose" a été retiré des frameworks Checkov valides dans les versions
+          # récentes (l'action suit @master, donc la dernière image Checkov à chaque run) :
+          # docker-compose.yml n'est donc plus scanné en tant que tel pour l'instant - limite
+          # connue de l'outil, pas un choix délibéré. Les Dockerfiles et manifestes Kubernetes
+          # restent couverts.
+          framework: dockerfile,kubernetes
           soft_fail: true # avertit sans bloquer tant que le référentiel de règles n'a pas été trié par l'équipe
 
   hadolint:

@@ -83,7 +83,7 @@ les organisations qui prennent l'AppSec au sérieux.
 
 | Job | Outil | Ce qu'il vérifie |
 |---|---|---|
-| `iac-scan` | Checkov | Mauvaises pratiques dans les Dockerfiles, `docker-compose.yml` et les manifestes Kubernetes d'exemple (`infra/k8s/`) — conteneurs root, absence de limites de ressources, etc. |
+| `iac-scan` | Checkov | Mauvaises pratiques dans les Dockerfiles et les manifestes Kubernetes d'exemple (`infra/k8s/`) — conteneurs root, absence de limites de ressources, etc. Le framework `docker_compose` a été retiré de Checkov dans ses versions récentes ; `docker-compose.yml` n'est donc plus couvert par ce job pour l'instant. |
 | `hadolint` | Hadolint | Bonnes pratiques d'écriture de Dockerfile (couches, cache, épinglage de versions) |
 
 ### Construction et scan d'image

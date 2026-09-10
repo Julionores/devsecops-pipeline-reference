@@ -1,5 +1,7 @@
 # DevSecOps Pipeline Reference — ComplianceTracker
 
+[![CI - Intégration Continue DevSecOps](https://github.com/Julionores/devsecops-pipeline-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/Julionores/devsecops-pipeline-reference/actions/workflows/ci.yml)
+
 Une chaîne CI/CD DevSecOps de référence, volontairement exhaustive, appliquée à une petite
 application web full-stack (TypeScript / React / Express). L'application — un outil de suivi
 de contrôles de conformité OWASP ASVS / PCI-DSS — est le **véhicule** ; le pipeline qui la
@@ -28,7 +30,7 @@ pour le détail complet, étape par étape.
 **CI** (`.github/workflows/ci.yml`) : lint + typage + tests unitaires (backend et frontend
 indépendamment) · scan de secrets (Gitleaks) · SAST double-moteur (Semgrep + CodeQL) · SCA
 (`npm audit` + Dependency Review) · conformité des licences open source · génération de SBOM
-(CycloneDX) · scan d'infrastructure as code (Checkov sur Dockerfiles/Compose/Kubernetes) ·
+(CycloneDX) · scan d'infrastructure as code (Checkov sur Dockerfiles/Kubernetes) ·
 lint de Dockerfile (Hadolint) · build et publication d'image (GHCR) · scan de vulnérabilités
 d'image (Trivy) · signature keyless et attestation de provenance SLSA (Sigstore/cosign).
 
