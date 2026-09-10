@@ -1,0 +1,91 @@
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: #1a1a2e;
+}
+
+.app__header h1 {
+  margin-bottom: 0.25rem;
+}
+
+.app__header p {
+  color: #555;
+  margin-top: 0;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.control-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.control-table th,
+.control-table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #e2e2ea;
+  vertical-align: top;
+}
+
+.control-title {
+  font-weight: 600;
+}
+
+.control-description {
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge--neutral {
+  background: #eceff1;
+  color: #37474f;
+}
+
+.badge--warning {
+  background: #fff3cd;
+  color: #7a5b00;
+}
+
+.badge--success {
+  background: #d4edda;
+  color: #14532d;
+}
+
+.badge--danger {
+  background: #f8d7da;
+  color: #7a1220;
+}
+
+.error-message {
+  color: #b3261e;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

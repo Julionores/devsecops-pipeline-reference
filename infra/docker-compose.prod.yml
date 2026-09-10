@@ -1,0 +1,26 @@
+# Utilisé par le pipeline CD (.github/workflows/cd.yml) sur l'hôte de staging/production,
+# via `docker compose -f docker-compose.prod.yml up -d`. Contrairement au docker-compose.yml
+# racine (build local pour le développement), ce fichier ne construit rien : il tire des
+# images déjà construites, scannées et signées par le pipeline CI.
+#
+# IMAGE_TAG doit être exporté avant l'appel (le pipeline CD le fait automatiquement) :
+#   export IMAGE_TAG=<sha-du-commit-ou-"latest">
+
+services:
+  backend:
+    image: ghcr.io/OWNER/REPO/backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:?Définir CORS_ALLOWED_ORIGIN}
+    ports:
+      - "3000:3000"
+
+  frontend:
+    image: ghcr.io/OWNER/REPO/frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:8080"

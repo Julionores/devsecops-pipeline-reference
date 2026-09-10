@@ -1,0 +1,50 @@
+# Manifeste d'exemple - voir le commentaire d'en-tête de backend-deployment.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-tracker-frontend
+  labels:
+    app: compliance-tracker-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliance-tracker-frontend
+  template:
+    metadata:
+      labels:
+        app: compliance-tracker-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/julionores/compliance-tracker-frontend:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-tracker-frontend
+spec:
+  selector:
+    app: compliance-tracker-frontend
+  ports:
+    - port: 8080
+      targetPort: 8080

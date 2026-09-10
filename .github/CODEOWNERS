@@ -1,0 +1,5 @@
+# Toute modification du pipeline ou de la configuration de sécurité nécessite une revue
+# explicite - évite qu'un changement de workflow CI/CD passe inaperçu dans une PR.
+/.github/workflows/  @Julionores
+/infra/              @Julionores
+/.zap/               @Julionores

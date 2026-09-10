@@ -1,0 +1,345 @@
+name: CI - Intégration Continue DevSecOps
+
+# Portée volontairement large : ce pipeline sert de référence pour démontrer la
+# couverture des grandes familles d'outils CI (qualité, tests, sécurité applicative,
+# sécurité de la chaîne d'approvisionnement logicielle). Voir docs/pipeline-architecture.md
+# pour le détail de chaque étape et sa justification.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Qualité de code + tests unitaires (par service - stacks indépendantes)
+  # ---------------------------------------------------------------------------
+  backend-quality:
+    name: Backend - lint, types, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Format (Prettier)
+        run: npm run format
+
+      - name: Vérification des types (tsc)
+        run: npm run typecheck
+
+      - name: Tests unitaires + couverture (Jest)
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Publier le rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+
+  frontend-quality:
+    name: Frontend - lint, types, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Format (Prettier)
+        run: npm run format
+
+      - name: Tests unitaires (Vitest + Testing Library)
+        run: npm run test:coverage
+
+      - name: Build (tsc + Vite)
+        run: npm run build
+
+      - name: Publier le build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+  # ---------------------------------------------------------------------------
+  # 2. Sécurité applicative (SAST) et secrets
+  # ---------------------------------------------------------------------------
+  secrets-scan:
+    name: Scan de secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sast-semgrep:
+    name: SAST - Semgrep (OWASP Top 10, JS/TS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/typescript
+            p/javascript
+            p/react
+
+  sast-codeql:
+    name: SAST - CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+
+  # ---------------------------------------------------------------------------
+  # 3. Sécurité de la chaîne d'approvisionnement (SCA, licences, SBOM)
+  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: SCA - npm audit + dependency review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: npm audit (backend)
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+      - name: npm audit (frontend)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      # Sur les pull requests uniquement : bloque l'introduction d'une dépendance
+      # avec une CVE connue ou une licence non autorisée, directement dans la diff.
+      - name: Dependency Review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  license-check:
+    name: Conformité des licences open source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Installer license-checker
+        run: npm install -g license-checker
+
+      - name: Vérifier les licences (backend)
+        working-directory: backend
+        run: |
+          npm ci --omit=dev
+          license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"
+
+      - name: Vérifier les licences (frontend)
+        working-directory: frontend
+        run: |
+          npm ci --omit=dev
+          license-checker --production --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"
+
+  sbom:
+    name: Génération du SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-quality]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SBOM backend
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./backend
+          format: cyclonedx-json
+          output-file: sbom-backend.cdx.json
+
+      - name: SBOM frontend
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./frontend
+          format: cyclonedx-json
+          output-file: sbom-frontend.cdx.json
+
+      - name: Publier les SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-*.cdx.json
+
+  # ---------------------------------------------------------------------------
+  # 4. Infrastructure as Code
+  # ---------------------------------------------------------------------------
+  iac-scan:
+    name: Scan IaC (Checkov - Dockerfiles, Compose, Kubernetes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,docker_compose,kubernetes
+          soft_fail: true # avertit sans bloquer tant que le référentiel de règles n'a pas été trié par l'équipe
+
+  hadolint:
+    name: Lint des Dockerfiles (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+
+  # ---------------------------------------------------------------------------
+  # 5. Construction, scan et signature des images (uniquement sur main)
+  # ---------------------------------------------------------------------------
+  build-images:
+    name: Build & push des images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - backend-quality
+      - frontend-quality
+      - secrets-scan
+      - sast-semgrep
+      - dependency-audit
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # requis pour la signature keyless cosign (OIDC)
+    outputs:
+      backend-digest: ${{ steps.build-backend.outputs.digest }}
+      frontend-digest: ${{ steps.build-frontend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend
+        id: build-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push frontend
+        id: build-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Provenance SLSA + signature keyless Sigstore : preuve vérifiable que l'image
+      # provient bien de ce pipeline, sur ce commit, sans clé privée à gérer.
+      - name: Attestation de provenance SLSA (backend)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+          subject-digest: ${{ steps.build-backend.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attestation de provenance SLSA (frontend)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+          subject-digest: ${{ steps.build-frontend.outputs.digest }}
+          push-to-registry: true
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Signer les images (cosign keyless)
+        run: |
+          cosign sign --yes "${REGISTRY}/${BACKEND_IMAGE}@${{ steps.build-backend.outputs.digest }}"
+          cosign sign --yes "${REGISTRY}/${FRONTEND_IMAGE}@${{ steps.build-frontend.outputs.digest }}"
+
+  scan-images:
+    name: Scan des images (Trivy)
+    runs-on: ubuntu-latest
+    needs: build-images
+    steps:
+      - name: Trivy - backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}@${{ needs.build-images.outputs.backend-digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+      - name: Trivy - frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}@${{ needs.build-images.outputs.frontend-digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"

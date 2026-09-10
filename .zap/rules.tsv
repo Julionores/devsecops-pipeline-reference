@@ -1,0 +1,2 @@
+10021	IGNORE	(X-Content-Type-Options manquant sur les assets statiques Nginx par défaut - suivi séparément)
+10202	IGNORE	(Absence de jeton anti-CSRF - API sans état, non concernée sous cette forme)

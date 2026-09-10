@@ -1,0 +1,160 @@
+name: CD - Déploiement Continu
+
+# Se déclenche une fois le pipeline CI terminé avec succès sur main (build-images a déjà
+# poussé et signé les images). Enchaîne : déploiement staging -> DAST -> gate d'approbation
+# manuelle -> déploiement production -> notification. Voir docs/pipeline-architecture.md.
+
+on:
+  workflow_run:
+    workflows: ["CI - Intégration Continue DevSecOps"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      rollback_to_sha:
+        description: "SHA de l'image à redéployer en cas de rollback (laisser vide pour un déploiement normal)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+
+jobs:
+  determine-version:
+    name: Déterminer la version à déployer
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+    steps:
+      - id: resolve
+        run: |
+          if [ -n "${{ inputs.rollback_to_sha }}" ]; then
+            echo "image_tag=${{ inputs.rollback_to_sha }}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Rollback demandé vers ${{ inputs.rollback_to_sha }}"
+          else
+            echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-staging:
+    name: Déploiement - Staging
+    needs: determine-version
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.compliance-tracker.example.com
+    steps:
+      - name: Déployer sur l'hôte de staging (SSH + Docker Compose)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/compliance-tracker
+            export IMAGE_TAG=${{ needs.determine-version.outputs.image_tag }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+
+      - name: Attendre la disponibilité du service
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf https://staging.compliance-tracker.example.com/api/health; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Le service de staging n'a pas répondu à temps"
+          exit 1
+
+  dast-scan:
+    name: DAST - OWASP ZAP (baseline scan)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP ZAP - scan de référence sur staging
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "https://staging.compliance-tracker.example.com"
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-a"
+          fail_action: true
+
+      - name: Publier le rapport ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: report_html.html
+
+  smoke-tests:
+    name: Smoke tests post-déploiement
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier les endpoints critiques
+        run: |
+          set -e
+          curl -sf https://staging.compliance-tracker.example.com/api/health | grep -q '"status":"UP"'
+          curl -sf -o /dev/null -w "%{http_code}" https://staging.compliance-tracker.example.com/api/controls | grep -q "200"
+
+  # ---------------------------------------------------------------------------
+  # Gate manuelle : ce job ne démarre que si un reviewer approuve l'environnement
+  # "production" dans les règles de protection GitHub Environments (Settings ->
+  # Environments -> production -> Required reviewers). Aucune configuration
+  # supplémentaire dans ce fichier : la gate est appliquée par GitHub lui-même.
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    name: Déploiement - Production (approbation manuelle requise)
+    needs: [dast-scan, smoke-tests, determine-version]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://compliance-tracker.example.com
+    steps:
+      - name: Déployer sur l'hôte de production (SSH + Docker Compose)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/compliance-tracker
+            export IMAGE_TAG=${{ needs.determine-version.outputs.image_tag }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+
+      - name: Vérifier la disponibilité en production
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf https://compliance-tracker.example.com/api/health; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Le service de production n'a pas répondu à temps - envisager un rollback (workflow_dispatch avec rollback_to_sha)"
+          exit 1
+
+  notify:
+    name: Notification Slack
+    needs: [deploy-production]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ needs.deploy-production.result == 'success' && '✅ Déploiement production réussi' || '❌ Échec du déploiement production' }} - commit ${{ github.sha }} - ${{ github.event.workflow_run.html_url || github.server_url }}"
+            }
