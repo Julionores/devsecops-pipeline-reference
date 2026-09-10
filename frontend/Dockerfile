@@ -11,7 +11,7 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # --- Étape 2 : image finale, Nginx minimal ---
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 # Correctifs de sécurité Alpine publiés après la construction de l'image de base
 # (openssl, libxml2, zlib...) - sans ça, Trivy remonte régulièrement des CVE
