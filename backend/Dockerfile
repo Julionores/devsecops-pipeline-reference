@@ -1,5 +1,5 @@
 # --- Étape 1 : dépendances + build ---
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -10,13 +10,13 @@ COPY src ./src
 RUN npm run build
 
 # --- Étape 2 : dépendances de production uniquement ---
-FROM node:20-alpine AS prod-deps
+FROM node:26-alpine AS prod-deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
 # --- Étape 3 : image finale, minimale, utilisateur non-root ---
-FROM node:20-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 # Mise à jour des paquets OS (correctifs de sécurité Alpine publiés après la
