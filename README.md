@@ -12,7 +12,9 @@ construit, la sécurise et la déploie est le **véritable sujet** de ce projet.
 > [LinkedIn](https://www.linkedin.com/in/junior-tsafack-megnekeu-b673151b9)) — pièce d'un
 > portfolio technique orienté Full Stack / DevSecOps pour le secteur bancaire. Voir aussi
 > [`securebank-api`](https://github.com/Julionores/securebank-api), qui applique une version
-> plus ciblée de la même discipline de sécurité à une API bancaire.
+> plus ciblée de la même discipline de sécurité à une API bancaire, et
+> [`postgresql-ha-repmgr`](https://github.com/Julionores/postgresql-ha-repmgr), un cluster
+> PostgreSQL à haute disponibilité avec failover automatique.
 
 ## Pourquoi ce projet
 
