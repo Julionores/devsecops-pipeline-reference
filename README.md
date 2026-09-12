@@ -23,7 +23,9 @@ construit, la sécurise et la déploie est le **véritable sujet** de ce projet.
 > [`aws-alb-deployment-patterns`](https://github.com/Julionores/aws-alb-deployment-patterns) et
 > [`aws-vpc-connectivity-patterns`](https://github.com/Julionores/aws-vpc-connectivity-patterns).
 > Côté Machine Learning, voir aussi [`gradientforge`](https://github.com/Julionores/gradientforge),
-> un moteur de régression et classification codé en NumPy pur.
+> un moteur de régression et classification codé en NumPy pur, et
+> [`radar-risque-impaye`](https://github.com/Julionores/radar-risque-impaye), un pipeline de
+> classification (scikit-learn) pour prédire le risque de retard de paiement.
 
 ## Pourquoi ce projet
 
