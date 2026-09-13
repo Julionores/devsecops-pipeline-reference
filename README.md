@@ -16,7 +16,10 @@ construit, la sécurise et la déploie est le **véritable sujet** de ce projet.
 > [`postgresql-ha-repmgr`](https://github.com/Julionores/postgresql-ha-repmgr), un cluster
 > PostgreSQL à haute disponibilité avec failover automatique, et
 > [`iso27001-isms-toolkit`](https://github.com/Julionores/iso27001-isms-toolkit), un SGSI
-> ISO 27001 avec contrôles AWS automatisés. Côté Cloud AWS, voir aussi
+> ISO 27001 avec contrôles AWS automatisés, et
+> [`homelab-attaque-detection`](https://github.com/Julionores/homelab-attaque-detection), un home
+> lab d'attaque/détection avec segmentation réseau, IDS Suricata et SIEM Elastic. Côté Cloud AWS,
+> voir aussi
 > [`dynamodb-streams-cdc-pipeline`](https://github.com/Julionores/dynamodb-streams-cdc-pipeline),
 > [`aws-troubleshooting-challenge`](https://github.com/Julionores/aws-troubleshooting-challenge),
 > [`s3-cross-region-replication`](https://github.com/Julionores/s3-cross-region-replication),
